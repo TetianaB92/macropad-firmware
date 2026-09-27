@@ -1,0 +1,48 @@
+name: Build public firmware
+on:
+  workflow_dispatch:
+  push:
+    tags: ['firmware-v*']
+permissions:
+  contents: read
+jobs:
+  firmware:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install platformio==6.1.19
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ runner.os }}-${{ hashFiles('firmware/platformio.ini') }}
+      - run: pio run -d firmware -e esp32p4_release
+      - run: python firmware/scripts/package-release.py --version "${GITHUB_REF_NAME}-${GITHUB_SHA:0:8}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macropad-esp32p4-installer
+          path: dist/firmware-release/
+          if-no-files-found: error
+      - uses: actions/upload-pages-artifact@v3
+        if: github.event.repository.name == 'macropad-firmware'
+        with:
+          path: dist/firmware-release/
+  publish-installer:
+    if: github.event.repository.name == 'macropad-firmware'
+    needs: firmware
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: firmware-pages
+      cancel-in-progress: false
+    steps:
+      - name: Publish browser installer
+        id: deployment
+        uses: actions/deploy-pages@v4
