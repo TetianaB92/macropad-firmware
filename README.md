@@ -7,6 +7,10 @@ primitives do require a firmware update.
 
 ## Build and browser installer
 
+
+
+
+
 ```sh
 python -m pip install platformio==6.1.19
 pio run -d firmware -e esp32p4_release
